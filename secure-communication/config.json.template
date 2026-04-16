@@ -1,0 +1,24 @@
+{
+  "network": {
+    "receiver_ip": "192.168.1.100",
+    "receiver_port": 5555,
+    "buffer_size": 4096,
+    "timeout": 30
+  },
+  "security": {
+    "encryption_key": "",
+    "auth_key": "",
+    "timestamp_window": 60,
+    "replay_window": 300
+  },
+  "display": {
+    "colors": {
+      "safe": "\u001b[92m",
+      "warning": "\u001b[93m",
+      "attack": "\u001b[91m",
+      "reset": "\u001b[0m",
+      "info": "\u001b[94m",
+      "attacker": "\u001b[95m"
+    }
+  }
+}
