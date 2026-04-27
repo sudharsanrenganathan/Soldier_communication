@@ -10,8 +10,8 @@ This project uses **3 laptops** running the **same codebase** in different roles
 - **Laptop C (Attacker)**: Intercepts messages and attempts replay attacks
 
 The system demonstrates:
-- ✅ **Encryption**: Fernet (AES-128-CBC + HMAC-SHA256)
-- ✅ **Authentication**: HMAC-SHA256 for sender verification
+- ✅ **Encryption**: AES-256-GCM (Advanced Encryption Standard with Galois/Counter Mode)
+- ✅ **Authentication**: Built-in authentication with AES-GCM + HMAC-SHA256 for message verification
 - ✅ **Replay Attack Prevention**: Timestamp + sequence number validation
 - ✅ **Attack Detection**: Real-time logging of security violations
 - ✅ **Threat Monitoring**: Dynamic threat level indicators (SAFE/WARNING/ATTACK)
@@ -114,7 +114,10 @@ Implements cryptographic operations for encryption and authentication.
 - `verify_hmac(message, hmac_digest, key)` - Verifies HMAC authentication token
 
 **Security Features**:
-- Fernet encryption (AES-128-CBC + HMAC-SHA256)
+- AES-256-GCM authenticated encryption (military-grade security)
+- 256-bit key strength (stronger than standard AES-128)
+- Galois/Counter Mode for parallel processing and performance
+- Built-in authentication tag (128-bit) for integrity verification
 - Constant-time HMAC comparison (prevents timing attacks)
 - UTF-8 encoding for string inputs
 
@@ -218,9 +221,12 @@ Attacker role implementation (Hacker).
 ## 🔒 Security Features
 
 ### Encryption
-- **Algorithm**: Fernet (AES-128-CBC + HMAC-SHA256)
-- **Key Size**: 256 bits (32 bytes)
-- **Purpose**: Ensures confidentiality - attackers cannot read intercepted messages
+- **Algorithm**: AES-256-GCM (Advanced Encryption Standard - Galois/Counter Mode)
+- **Key Size**: 256 bits (32 bytes) - Military-grade encryption
+- **Mode**: GCM (Galois/Counter Mode) - Provides authenticated encryption
+- **Nonce**: 96 bits (12 bytes) - Random nonce for each message
+- **Authentication Tag**: 128 bits (16 bytes) - Ensures message integrity
+- **Purpose**: Ensures confidentiality and authenticity - attackers cannot read or modify messages
 
 ### Authentication
 - **Algorithm**: HMAC-SHA256

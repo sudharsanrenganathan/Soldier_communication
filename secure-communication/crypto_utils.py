@@ -1,68 +1,119 @@
 # Cryptographic utilities for encryption and authentication
-# Implements Fernet encryption and HMAC-SHA256 authentication
+# Implements AES-256-GCM encryption (upgraded from Fernet for enhanced security)
+# AES-256-GCM provides authenticated encryption with associated data (AEAD)
 
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2
 from cryptography.fernet import Fernet, InvalidToken
 import hmac
 import hashlib
+import os
+import base64
 
 
 def encrypt_message(plaintext: str, key: bytes) -> bytes:
-    """Encrypt message using Fernet encryption.
+    """Encrypt message using AES-256-GCM encryption.
+    
+    AES-256-GCM provides:
+    - 256-bit key strength (stronger than Fernet's AES-128)
+    - Authenticated encryption (integrity + confidentiality in one operation)
+    - Galois/Counter Mode for parallel processing and performance
     
     Args:
         plaintext: Message to encrypt
-        key: Fernet encryption key (32 bytes, base64-encoded)
+        key: Encryption key (32 bytes for AES-256, or base64-encoded Fernet key for compatibility)
     
     Returns:
-        Encrypted message as bytes (base64-encoded by Fernet)
+        Encrypted message as bytes (nonce + ciphertext + tag, base64-encoded)
     
     Raises:
-        InvalidToken: If key is invalid
+        ValueError: If key is invalid
         TypeError: If plaintext is not a string
     """
     try:
-        # Create Fernet cipher with the provided key
-        cipher = Fernet(key)
+        # Check if key is base64-encoded Fernet key (for backward compatibility)
+        if len(key) == 44 and key.endswith(b'='):
+            # Decode Fernet key to get raw 32 bytes
+            key = base64.urlsafe_b64decode(key)
+        
+        # Ensure key is exactly 32 bytes for AES-256
+        if len(key) != 32:
+            raise ValueError("Key must be 32 bytes for AES-256")
+        
+        # Create AES-GCM cipher
+        aesgcm = AESGCM(key)
+        
+        # Generate random 96-bit (12-byte) nonce (recommended for GCM)
+        nonce = os.urandom(12)
         
         # Encode plaintext to bytes (UTF-8) and encrypt
         plaintext_bytes = plaintext.encode('utf-8')
-        ciphertext = cipher.encrypt(plaintext_bytes)
         
-        return ciphertext
+        # Encrypt and authenticate (GCM provides both)
+        # Returns ciphertext + 16-byte authentication tag
+        ciphertext = aesgcm.encrypt(nonce, plaintext_bytes, None)
+        
+        # Combine nonce + ciphertext for transmission
+        # Format: [12-byte nonce][ciphertext + 16-byte tag]
+        encrypted_data = nonce + ciphertext
+        
+        # Base64 encode for JSON serialization
+        return base64.b64encode(encrypted_data)
     
-    except InvalidToken:
-        raise InvalidToken("Invalid encryption key")
+    except ValueError as e:
+        raise ValueError(f"Invalid encryption key: {e}")
     except AttributeError:
         raise TypeError("Plaintext must be a string")
 
 
 def decrypt_message(ciphertext: bytes, key: bytes) -> str:
-    """Decrypt message using Fernet decryption.
+    """Decrypt message using AES-256-GCM decryption.
+    
+    AES-256-GCM automatically verifies authentication tag during decryption,
+    ensuring both confidentiality and integrity.
     
     Args:
-        ciphertext: Encrypted message (base64-encoded bytes)
-        key: Fernet encryption key (32 bytes, base64-encoded)
+        ciphertext: Encrypted message (base64-encoded: nonce + ciphertext + tag)
+        key: Encryption key (32 bytes for AES-256, or base64-encoded Fernet key for compatibility)
     
     Returns:
         Decrypted plaintext string
     
     Raises:
-        InvalidToken: If decryption fails or message is tampered
+        ValueError: If decryption fails or message is tampered
     """
     try:
-        # Create Fernet cipher with the provided key
-        cipher = Fernet(key)
+        # Check if key is base64-encoded Fernet key (for backward compatibility)
+        if len(key) == 44 and key.endswith(b'='):
+            # Decode Fernet key to get raw 32 bytes
+            key = base64.urlsafe_b64decode(key)
         
-        # Decrypt and decode to string (UTF-8)
-        plaintext_bytes = cipher.decrypt(ciphertext)
+        # Ensure key is exactly 32 bytes for AES-256
+        if len(key) != 32:
+            raise ValueError("Key must be 32 bytes for AES-256")
+        
+        # Base64 decode the encrypted data
+        encrypted_data = base64.b64decode(ciphertext)
+        
+        # Extract nonce (first 12 bytes) and ciphertext (remaining bytes)
+        nonce = encrypted_data[:12]
+        ciphertext_with_tag = encrypted_data[12:]
+        
+        # Create AES-GCM cipher
+        aesgcm = AESGCM(key)
+        
+        # Decrypt and verify authentication tag
+        # Raises exception if tag verification fails (message tampered)
+        plaintext_bytes = aesgcm.decrypt(nonce, ciphertext_with_tag, None)
+        
+        # Decode to string (UTF-8)
         plaintext = plaintext_bytes.decode('utf-8')
         
         return plaintext
     
-    except InvalidToken:
-        raise InvalidToken("Decryption failed - message may be corrupted or tampered")
     except Exception as e:
-        raise InvalidToken(f"Decryption error: {e}")
+        raise ValueError(f"Decryption failed - message may be corrupted or tampered: {e}")
 
 
 
